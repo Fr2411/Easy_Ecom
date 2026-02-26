@@ -4,6 +4,10 @@ import os
 import plotly.express as px
 from datetime import datetime
 
+PRODUCTS_FILE = "products.csv"
+SALES_FILE = "sales.csv"
+USERS_FILE = "users.csv"
+
 # -------------------------
 # PAGE CONFIG
 # -------------------------
@@ -15,7 +19,11 @@ st.title("💼 SME Asset Manager Demo (Single-User Version)")
 # -------------------------
 
 def load_users():
-    return pd.read_csv("users.csv")
+    return pd.read_csv(USERS_FILE)
+
+
+def normalize_product_name(name):
+    return str(name).strip().lower()
 
 def check_login(username, password):
     users = load_users()
@@ -29,19 +37,51 @@ def check_login(username, password):
 # -------------------------
 def load_products():
     columns = ["product_name","quantity","unit_cost","total_cost"]
-    if os.path.exists("products.csv"):
-        df = pd.read_csv("products.csv")
-        return df
+    if os.path.exists(PRODUCTS_FILE):
+        df = pd.read_csv(PRODUCTS_FILE)
+
+        for col in columns:
+            if col not in df.columns:
+                df[col] = 0
+
+        df["product_name"] = df["product_name"].apply(normalize_product_name)
+        df = df[df["product_name"] != ""].copy()
+
+        df["quantity"] = pd.to_numeric(df["quantity"], errors="coerce").fillna(0).astype(int).clip(lower=0)
+        df["unit_cost"] = pd.to_numeric(df["unit_cost"], errors="coerce").fillna(0.0).clip(lower=0).round(2)
+
+        df["line_value"] = (df["quantity"] * df["unit_cost"]).round(2)
+
+        consolidated = (
+            df.groupby("product_name", as_index=False)
+            .agg(quantity=("quantity", "sum"), total_value=("line_value", "sum"))
+        )
+        consolidated["unit_cost"] = consolidated.apply(
+            lambda row: round(row["total_value"] / row["quantity"], 2) if row["quantity"] > 0 else 0.0,
+            axis=1,
+        )
+        consolidated["total_cost"] = (consolidated["quantity"] * consolidated["unit_cost"]).round(2)
+        consolidated = consolidated[columns].sort_values("product_name").reset_index(drop=True)
+
+        consolidated.to_csv(PRODUCTS_FILE, index=False)
+        return consolidated
     else:
         df = pd.DataFrame(columns=columns)
-        df.to_csv("products.csv", index=False)
+        df.to_csv(PRODUCTS_FILE, index=False)
         return df
 
 def add_product(product_name, quantity, unit_cost):
-    product_name = product_name.strip().lower()
+    product_name = normalize_product_name(product_name)
     df = load_products()
     quantity = int(quantity)
     unit_cost = round(float(unit_cost),2)
+
+    if not product_name:
+        return False, "Enter product name"
+    if quantity <= 0:
+        return False, "Quantity must be greater than zero"
+    if unit_cost < 0:
+        return False, "Unit cost cannot be negative"
 
     if product_name in df["product_name"].values:
         # Weighted Average Cost
@@ -60,7 +100,8 @@ def add_product(product_name, quantity, unit_cost):
         new_row = {"product_name":product_name,"quantity":quantity,"unit_cost":unit_cost,"total_cost":total_cost}
         df = pd.concat([df,pd.DataFrame([new_row])], ignore_index=True)
 
-    df.to_csv("products.csv", index=False)
+    df.to_csv(PRODUCTS_FILE, index=False)
+    return True, "Product added / updated successfully"
 
 # -------------------------
 # SALES
@@ -70,42 +111,60 @@ def load_sales():
         "date","product_name","quantity_sold","unit_price",
         "unit_cost","total_sale","cost_of_goods_sold","profit"
     ]
-    if os.path.exists("sales.csv"):
-        df = pd.read_csv("sales.csv")
+    if os.path.exists(SALES_FILE):
+        df = pd.read_csv(SALES_FILE)
         for col in columns:
             if col not in df.columns:
                 df[col] = 0
-        df.to_csv("sales.csv", index=False)
+
+        df["product_name"] = df["product_name"].apply(normalize_product_name)
+        df["quantity_sold"] = pd.to_numeric(df["quantity_sold"], errors="coerce").fillna(0).astype(int).clip(lower=0)
+        df["unit_price"] = pd.to_numeric(df["unit_price"], errors="coerce").fillna(0.0).clip(lower=0).round(2)
+        df["unit_cost"] = pd.to_numeric(df["unit_cost"], errors="coerce").fillna(0.0).clip(lower=0).round(2)
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        df["date"] = df["date"].fillna(datetime.now()).dt.strftime("%Y-%m-%d %H:%M:%S")
+
+        # Recalculate all derived financial fields to repair historical miscalculations.
+        df["total_sale"] = (df["quantity_sold"] * df["unit_price"]).round(2)
+        df["cost_of_goods_sold"] = (df["quantity_sold"] * df["unit_cost"]).round(2)
+        df["profit"] = (df["total_sale"] - df["cost_of_goods_sold"]).round(2)
+
+        df = df[columns]
+        df.to_csv(SALES_FILE, index=False)
         return df
     else:
         df = pd.DataFrame(columns=columns)
-        df.to_csv("sales.csv", index=False)
+        df.to_csv(SALES_FILE, index=False)
         return df
 
 def add_sale(product_name, quantity_sold, unit_price):
-    product_name = product_name.strip().lower()
+    product_name = normalize_product_name(product_name)
     df_products = load_products()
     df_sales = load_sales()
 
     product_row = df_products[df_products["product_name"]==product_name]
     if product_row.empty:
-        return
+        return False, "Product not found"
 
     available_qty = int(product_row["quantity"].values[0])
     unit_cost = float(product_row["unit_cost"].values[0])
     quantity_sold = int(quantity_sold)
     unit_price = round(float(unit_price),2)
 
+    if quantity_sold <= 0:
+        return False, "Quantity sold must be greater than zero"
+    if unit_price < 0:
+        return False, "Selling price cannot be negative"
+
     if quantity_sold > available_qty:
-        st.error("Cannot sell more than available stock.")
-        return
+        return False, "Cannot sell more than available stock"
 
     total_sale = round(quantity_sold*unit_price,2)
     cogs = round(quantity_sold*unit_cost,2)
     profit = round(total_sale - cogs,2)
 
     new_row = {
-        "date": datetime.now(),
+        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "product_name": product_name,
         "quantity_sold": quantity_sold,
         "unit_price": unit_price,
@@ -115,13 +174,14 @@ def add_sale(product_name, quantity_sold, unit_price):
         "profit": profit
     }
     df_sales = pd.concat([df_sales,pd.DataFrame([new_row])], ignore_index=True)
-    df_sales.to_csv("sales.csv", index=False)
+    df_sales.to_csv(SALES_FILE, index=False)
 
     # Update inventory
     new_qty = available_qty - quantity_sold
     df_products.loc[df_products["product_name"]==product_name, "quantity"] = new_qty
     df_products.loc[df_products["product_name"]==product_name, "total_cost"] = round(new_qty*unit_cost,2)
-    df_products.to_csv("products.csv", index=False)
+    df_products.to_csv(PRODUCTS_FILE, index=False)
+    return True, "Sale recorded successfully"
 
 # -------------------------
 # SESSION STATE
@@ -197,9 +257,12 @@ else:
             submitted = st.form_submit_button("Add Product")
             if submitted:
                 if product_name:
-                    add_product(product_name, quantity, unit_cost)
-                    st.success("Product added / updated successfully!")
-                    st.rerun()
+                    ok, message = add_product(product_name, quantity, unit_cost)
+                    if ok:
+                        st.success(message)
+                        st.rerun()
+                    else:
+                        st.error(message)
                 else:
                     st.error("Enter product name")
 
@@ -250,9 +313,12 @@ else:
 
                 submitted = st.form_submit_button("Record Sale")
                 if submitted:
-                    add_sale(product_name, quantity_sold, unit_price)
-                    st.success("Sale recorded successfully!")
-                    st.rerun()
+                    ok, message = add_sale(product_name, quantity_sold, unit_price)
+                    if ok:
+                        st.success(message)
+                        st.rerun()
+                    else:
+                        st.error(message)
 
     # -------- LOGOUT --------
     if st.button("Logout"):
