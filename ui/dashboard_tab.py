@@ -19,7 +19,6 @@ def render_dashboard_tab():
     col5.metric("Average Margin", f"{summary['avg_margin']}%")
 
     st.markdown("---")
-    st.info("⚠ Demo system limitations: Single-user, CSV-based, no FIFO, not tax-compliant, not multi-user safe.")
 
     if not df_products.empty:
         fig_assets = px.bar(df_products, x="product_name", y="total_cost", title="Asset Value per Product")
