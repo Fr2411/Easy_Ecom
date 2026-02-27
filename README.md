@@ -1,347 +1,280 @@
-# SME Asset Manager Demo
+# Easy Ecom
 
-A lightweight Streamlit app for small-business inventory and sales tracking with **weighted-average costing**.
-
-## How to Run
-
-1. Install Python 3.8+
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Run Streamlit app:
-   ```bash
-   streamlit run app.py
-   ```
-4. Login with:
-   - Username: `admin`
-   - Password: `admin123`
-
-## Project Structure
-
-```text
-.
-├── app.py                     # Main Streamlit entry point (routing + session flow)
-├── config.py                  # Global constants (file paths, app title/icon)
-├── ai_agents/
-│   ├── orchestrator.py         # Multi-agent coordinator + OpenAI function-calling setup
-│   ├── sales_agent.py          # Sales push agent (margin-safe campaign actions)
-│   ├── stock_agent.py          # Stock urgency and replenishment agent
-│   ├── discount_supervisor.py  # Discount approval policy agent
-│   └── prompt_utils.py         # Shared prompt template/rule builders
-├── services/
-│   ├── auth_service.py        # Authentication logic
-│   ├── common.py              # Shared helpers (name normalization)
-│   ├── inventory_service.py   # Inventory load/repair + weighted average updates
-│   ├── sales_service.py       # Sales load/repair + stock deduction
-│   └── analytics_service.py   # KPI and sale-preview calculations
-└── ui/
-    ├── dashboard_tab.py       # Dashboard tab rendering
-    ├── add_product_tab.py     # Add-product form tab rendering
-    ├── assets_tab.py          # Assets summary table tab rendering
-    └── sales_tab.py           # Sales entry tab rendering
-```
-
-## Project Flow
-
-1. **Authentication**
-   - Credentials are loaded from `users.csv` via `services/auth_service.py`.
-2. **Data loading and normalization**
-   - Products and sales CSV files are auto-repaired for missing columns and invalid values.
-   - Product names are normalized (trimmed + lowercase) to avoid duplicate keys.
-3. **Stock updates (purchases)**
-   - New purchases are merged into existing stock using weighted-average unit cost.
-4. **Sales recording**
-   - Product selection immediately refreshes stock, purchase cost, and profit preview values in the Sales tab.
-   - Sales are validated against available stock.
-   - Revenue, COGS, and profit are computed and persisted.
-   - Inventory quantity and value are reduced automatically.
-5. **Dashboard analytics**
-   - KPIs and product-level visualizations are rendered from cleaned data.
-6. **AI agent orchestration (new)**
-   - Structured event payloads (`dict`) are evaluated by specialized agents.
-   - Every agent returns strict JSON-style output (`action`, `text`, optional `metadata`).
-   - Prompt templates consistently enforce sales push, margin, stock urgency, and discount approval rules.
-   - OpenAI function-calling tools are defined with JSON Schema contracts that mirror TypeScript-style interfaces.
-
-## Critical Logic
-
-- **Weighted Average Cost Formula**
-  ```text
-  new_unit_cost = ((old_qty * old_cost) + (purchased_qty * purchase_cost)) / (old_qty + purchased_qty)
-  ```
-- **Sale Calculations (live preview in Sales tab)**
-  ```text
-  total_sale = quantity_sold * unit_price
-  cogs       = quantity_sold * unit_cost
-  profit     = total_sale - cogs
-  ```
-- **Data Integrity Repairs**
-  - Product names are normalized to lowercase/trimmed form.
-  - Negative/invalid numeric values are sanitized.
-  - Sales derived fields are recalculated on load to fix historical miscalculations.
-
-## Dependencies
-
-From `requirements.txt`:
-
-- `streamlit`
-- `pandas`
-- `plotly`
-- `openai`
+Easy Ecom is a Python-based commerce platform with:
+- A **Streamlit operations UI** for inventory, sales, and analytics.
+- A **FastAPI backend** for production-grade APIs, auth, reporting, chat/webhook integrations, and image search.
+- **AI agents** for sales, stock, and discount decision support.
 
 ---
 
-## Enterprise Backend Scaffold (FastAPI + PostgreSQL)
+## 1) Setup Steps
 
-A production-oriented backend scaffold now exists under `backend/` with:
+### Prerequisites
+- Python 3.10+
+- pip
+- Docker + Docker Compose (recommended for PostgreSQL/pgvector)
 
-- API versioning via `/api/v1`
-- JWT authentication and bcrypt password hashing
-- RBAC primitives (`users`, `roles`, `permissions`)
-- SQLAlchemy session/config setup
-- Alembic migration environment
-- Dockerized API runtime + pgvector-ready PostgreSQL compose service
+### Clone and install dependencies
 
-### Quickstart (Backend)
-
-1. Install dependencies:
-   ```bash
-   pip install -r backend/requirements.txt
-   ```
-2. Start PostgreSQL (pgvector image):
-   ```bash
-   docker compose up -d db
-   ```
-3. Run migrations (after creating your first revision):
-   ```bash
-   cd backend && alembic upgrade head
-   ```
-4. Start API:
-   ```bash
-   uvicorn backend.app.main:app --reload --port 8000
-   ```
-
-### Implemented Section C Components
-
-- `backend/app/main.py` – FastAPI app bootstrap and middleware.
-- `backend/app/api/v1/router.py` – versioned API router.
-- `backend/app/api/v1/endpoints/auth.py` – auth endpoints (`/register`, `/login`).
-- `backend/app/api/deps.py` – JWT dependency and current-user resolver.
-- `backend/app/core/security.py` – password hashing + JWT token creation.
-- `backend/app/core/config.py` – environment-driven settings.
-- `backend/app/db/session.py` – SQLAlchemy engine/session.
-- `backend/alembic/*` – migration scaffolding.
-
-
-### Implemented Section D Endpoints
-
-The API now includes versioned REST endpoints with Pydantic contracts:
-
-- `GET/POST/GET{id}/PATCH/DELETE /api/v1/products`
-- `POST /api/v1/inventory/adjustments`, `GET /api/v1/inventory/movements`
-- `POST/GET/PATCH/DELETE /api/v1/orders` with `X-2FA-Code` required for edits
-- `POST/GET /api/v1/returns`
-- `POST/GET /api/v1/accounting/journal-entries` with debit-credit validation
-- `GET /api/v1/reports/profit-loss`, `GET /api/v1/reports/stock-aging`
-- `GET /api/v1/chat/webhook` (Meta verify handshake)
-- `POST /api/v1/chat/webhook` (Meta inbound events + signature validation + AI orchestration + outbound reply)
-- `POST /api/v1/chat/webhook/inbound` (manual/dev inbound simulation)
-- `GET /api/v1/chat/templates` (sample Meta-ready templates)
-- `GET /api/v1/sessions/logs`
-
-Notes:
-- Order edits require `ORDER_EDIT_2FA_CODE` configured in env.
-- Profit/loss report computes from journal lines grouped by account type (`revenue`, `expense`).
-- Inventory is movement-ledger based (in/out/returns/adjustments), not static balances.
-
-### WhatsApp Integration Flow
-
-The backend now supports end-to-end WhatsApp webhook handling:
-
-1. **Webhook verification**
-   - `GET /api/v1/chat/webhook` validates `hub.verify_token` from Meta and returns `hub.challenge`.
-2. **Inbound message processing**
-   - `POST /api/v1/chat/webhook` validates `X-Hub-Signature-256` (when `WHATSAPP_APP_SECRET` is configured).
-   - Extracts inbound text messages from Meta webhook payload (`entry[].changes[].value.messages[]`).
-3. **AI routing**
-   - Each message is routed into `AgentOrchestrator` to collect sales/stock/discount guidance.
-4. **Outbound reply delivery**
-   - Replies are sent through Meta Graph API (`/{phone_number_id}/messages`) when access token credentials are configured.
-   - If credentials are not configured, sending is safely skipped and logged as `skipped`.
-5. **Conversation logging**
-   - Both inbound and outbound messages are persisted to the `conversations` table.
-
-#### Required/Optional Environment Variables (Backend)
-
-Add these to your backend `.env`:
-
-```env
-WHATSAPP_VERIFY_TOKEN=change_me_verify_token
-WHATSAPP_APP_SECRET=your_meta_app_secret
-WHATSAPP_ACCESS_TOKEN=your_whatsapp_access_token
-WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
-WHATSAPP_API_VERSION=v20.0
+```bash
+git clone <your-repo-url>
+cd Easy_Ecom
+pip install -r requirements.txt
+pip install -r backend/requirements.txt
 ```
 
-#### Sample Approved Template Catalog
+### Environment configuration
+Create `backend/.env` (or export env vars) with at least:
 
-`GET /api/v1/chat/templates` returns sample template payloads aligned to Meta template categories:
+```env
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/easy_ecom
+SECRET_KEY=change_this
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+ORDER_EDIT_2FA_CODE=123456
+WHATSAPP_VERIFY_TOKEN=change_me_verify_token
+WHATSAPP_APP_SECRET=
+WHATSAPP_ACCESS_TOKEN=
+WHATSAPP_PHONE_NUMBER_ID=
+WHATSAPP_API_VERSION=v20.0
+OPENAI_API_KEY=
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_REGION=us-east-1
+S3_BUCKET_NAME=easy-ecom
+```
 
-- `order_update_v1` (`UTILITY`)
-- `cart_reminder_v1` (`MARKETING`)
-- `support_followup_v1` (`UTILITY`)
+### Start database
 
+```bash
+docker compose up -d db
+```
 
-### Image Storage & Recognition (S3 + OpenAI + pgvector)
-
-The backend now supports product-image indexing and screenshot similarity search:
-
-1. `POST /api/v1/products/{product_id}/images`
-   - Accepts multipart image upload.
-   - Uploads binary data to S3.
-   - Generates an embedding vector through OpenAI embeddings API.
-   - Stores metadata + embedding in `product_images`.
-2. `POST /api/v1/products/image-search`
-   - Accepts a customer screenshot (`multipart/form-data`).
-   - Generates screenshot embedding.
-   - Performs cosine-similarity search with pgvector.
-   - Returns top matching products with a similarity score.
-
-#### pgvector setup
-
-- PostgreSQL service already uses `pgvector/pgvector:pg16` image.
-- Run Alembic migration to create extension/table/indexes:
+### Run migrations
 
 ```bash
 cd backend
 alembic upgrade head
+cd ..
 ```
 
-Migration includes:
-- `CREATE EXTENSION IF NOT EXISTS vector`
-- `product_images` table with `embedding vector(1536)`
-- ivfflat cosine index for fast nearest-neighbor search
+### Run backend API
 
-#### New backend environment variables
-
-```env
-OPENAI_API_KEY=...
-OPENAI_EMBEDDING_MODEL=text-embedding-3-small
-S3_REGION=us-east-1
-S3_ACCESS_KEY_ID=...
-S3_SECRET_ACCESS_KEY=...
-S3_BUCKET_NAME=...
-S3_PRODUCT_IMAGE_PREFIX=product-images
+```bash
+uvicorn backend.app.main:app --reload --port 8000
 ```
 
-#### New backend dependencies
+### Run Streamlit UI
 
-From `backend/requirements.txt`:
-- `pgvector`
-- `boto3`
-- `openai`
+```bash
+streamlit run app.py
+```
 
-### Backend Test Strategy (Pytest + Coverage)
+Default demo login:
+- Username: `admin`
+- Password: `admin123`
 
-The backend test suite now includes endpoint-level API coverage and an integration test for WhatsApp webhook processing.
+---
 
-#### What is covered
+## 2) Architecture Overview
 
-- End-to-end tests for every FastAPI endpoint under `backend/app/api/v1/endpoints/*` plus `/health`.
-- Fixture data for reusable product/customer/account records and order/order-item records.
-- Integration coverage for `POST /api/v1/chat/webhook` including message extraction, orchestrator routing, outbound reply handling, and conversation persistence.
+### High-level components
 
-#### Run tests
+1. **Streamlit App (`app.py`, `ui/`, `services/`)**
+   - Handles day-to-day business operations (inventory updates, sales entry, dashboard analytics).
+   - Uses CSV-backed storage (`products.csv`, `sales.csv`, `users.csv`) for lightweight local/demo workflows.
+
+2. **AI Agent Layer (`ai_agents/`)**
+   - `orchestrator.py` coordinates specialized agents.
+   - Sales, stock, and discount supervisor agents return structured decisions and recommendations.
+
+3. **FastAPI Backend (`backend/app/`)**
+   - Versioned REST API under `/api/v1`.
+   - JWT auth + RBAC model foundations.
+   - Inventory, orders, returns, accounting, reports, sessions, and chat webhook modules.
+   - Product image upload + embedding similarity search support.
+
+4. **Persistence**
+   - **Demo mode**: CSV files for Streamlit-side operations.
+   - **Production API mode**: PostgreSQL (with pgvector) via SQLAlchemy + Alembic migrations.
+
+5. **Deployment Layer (`deployment/`)**
+   - Dockerfile + compose orchestration.
+   - Nginx config and startup scripts for API service environments.
+
+### Backend package map
+
+```text
+backend/app
+├── api/
+│   ├── deps.py
+│   └── v1/endpoints/
+├── core/
+├── db/
+├── middleware/
+├── models/
+├── schemas/
+└── services/
+```
+
+### Typical request flow (backend)
+1. Request hits FastAPI route (`api/v1/endpoints/*`).
+2. Dependencies enforce auth/context (`api/deps.py`).
+3. Endpoint validates payload with Pydantic schemas.
+4. Business logic executes using DB session and services.
+5. Response serialized and returned to caller.
+
+---
+
+## 3) API Documentation
+
+Base URL (local): `http://localhost:8000`
+
+Interactive docs:
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+
+### Auth
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+
+### Products
+- `POST /api/v1/products`
+- `GET /api/v1/products`
+- `GET /api/v1/products/{product_id}`
+- `PATCH /api/v1/products/{product_id}`
+- `DELETE /api/v1/products/{product_id}`
+
+### Inventory
+- `POST /api/v1/inventory/adjustments`
+- `GET /api/v1/inventory/movements`
+
+### Orders
+- `POST /api/v1/orders`
+- `GET /api/v1/orders`
+- `GET /api/v1/orders/{order_id}`
+- `PATCH /api/v1/orders/{order_id}` *(requires `X-2FA-Code` header)*
+- `DELETE /api/v1/orders/{order_id}` *(requires `X-2FA-Code` header)*
+
+### Returns
+- `POST /api/v1/returns`
+- `GET /api/v1/returns`
+
+### Accounting
+- `POST /api/v1/accounting/journal-entries`
+- `GET /api/v1/accounting/journal-entries`
+
+### Reports
+- `GET /api/v1/reports/profit-loss`
+- `GET /api/v1/reports/stock-aging`
+
+### Chat / WhatsApp
+- `GET /api/v1/chat/webhook` *(Meta verification handshake)*
+- `POST /api/v1/chat/webhook` *(inbound webhook processing)*
+- `POST /api/v1/chat/webhook/inbound` *(manual/dev simulation)*
+- `GET /api/v1/chat/templates`
+
+### Sessions
+- `GET /api/v1/sessions/logs`
+
+### Product Image Search
+- `POST /api/v1/products/{product_id}/images`
+- `POST /api/v1/products/image-search`
+
+---
+
+## 4) How to Deploy
+
+### Option A: Docker Compose (recommended)
+
+1. Build and start services:
+   ```bash
+   docker compose up --build -d
+   ```
+2. Run migrations inside API container (if not automated by your entrypoint):
+   ```bash
+   docker compose exec backend alembic upgrade head
+   ```
+3. Verify health:
+   ```bash
+   curl http://localhost:8000/health
+   ```
+
+### Option B: Manual VM/Server deployment
+
+1. Provision Python, PostgreSQL (with pgvector), and Nginx.
+2. Set environment variables securely.
+3. Install dependencies:
+   ```bash
+   pip install -r backend/requirements.txt
+   ```
+4. Run migrations:
+   ```bash
+   cd backend && alembic upgrade head
+   ```
+5. Start with gunicorn/uvicorn (example):
+   ```bash
+   gunicorn -k uvicorn.workers.UvicornWorker backend.app.main:app -b 0.0.0.0:8000
+   ```
+6. Configure Nginx reverse proxy using `deployment/nginx/default.conf`.
+
+### Deployment recommendations
+- Use a managed PostgreSQL instance with automated backups.
+- Store secrets in a secrets manager (not in repo).
+- Enable TLS at ingress (Nginx/load balancer).
+- Add centralized logging and metrics.
+
+---
+
+## 5) How to Test
+
+### Backend tests
 
 ```bash
 pytest backend/tests -q
 ```
 
-#### Run with coverage
+### Focused test modules
 
 ```bash
-coverage run -m pytest backend/tests -q
-coverage report -m
+pytest backend/tests/test_api_endpoints.py -q
+pytest backend/tests/test_whatsapp_service.py -q
+pytest backend/tests/test_image_matching.py -q
 ```
 
-## Deployment (Docker + Nginx + PostgreSQL/pgvector + optional Redis)
-
-This repo now includes production-oriented deployment assets:
-
-- `Dockerfile` (API container image)
-- `docker-compose.yml` (API + pgvector PostgreSQL + Nginx + optional Redis)
-- `deployment/nginx/default.conf` (reverse proxy)
-- `deployment/scripts/wait-for-postgres.sh` (DB readiness check)
-- `deployment/scripts/start-api.sh` (migrate + start API)
-
-### Local container deployment
-
-1. Create/update your backend environment values in `.env.example` (or copy to `.env` and adjust values).
-2. Start services:
-   ```bash
-   docker compose up -d --build
-   ```
-3. API is available behind Nginx at `http://localhost`.
-4. Health check:
-   ```bash
-   curl http://localhost/health
-   ```
-
-### Enable Redis (optional)
-
-Redis is configured as an optional profile named `cache`.
+### Optional quality checks
 
 ```bash
-docker compose --profile cache up -d --build
+python -m compileall .
 ```
 
-### Render deployment notes
+---
 
-- Use a **Web Service** for the backend container.
-- Build command: `docker build -t easy-ecom-api .`
-- Start command: uses container `CMD` (`/app/deployment/scripts/start-api.sh`).
-- Set environment variables from `.env.example`.
-- Add a managed PostgreSQL instance and set `DATABASE_URL` to its connection string.
-- If Redis is needed, add a Redis instance and set `REDIS_URL`.
-- If you also want Nginx in front, deploy Nginx as a separate service or use Render edge routing directly to FastAPI.
+## Project Structure
 
-### Railway deployment notes
+```text
+.
+├── app.py
+├── config.py
+├── ai_agents/
+├── services/
+├── ui/
+├── backend/
+│   ├── app/
+│   ├── alembic/
+│   ├── tests/
+│   └── requirements.txt
+├── deployment/
+├── docker-compose.yml
+├── requirements.txt
+└── README.md
+```
 
-- Create a new project and deploy from this repo with **Dockerfile**.
-- Add PostgreSQL plugin/service; set `DATABASE_URL` in backend service.
-- Optionally add Redis plugin/service; set `REDIS_URL`.
-- Expose `PORT` (Railway injects it automatically).
-- Startup script handles migrations automatically (`RUN_MIGRATIONS=1`).
+---
 
-### AWS ECS (Fargate) deployment notes
+## Critical Business Logic Notes
 
-- Push image built from `Dockerfile` to ECR.
-- Create ECS Task Definition for the API container.
-- Add env vars + secrets via AWS Secrets Manager/SSM.
-- Use RDS PostgreSQL with pgvector enabled (`CREATE EXTENSION vector;`).
-- Optional: ElastiCache Redis and set `REDIS_URL`.
-- Put ALB in front of ECS service (path `/` -> container port 8000), or run Nginx as sidecar if strict reverse-proxy rules are required.
-- Health check path: `/health`.
-
-### GCP deployment notes
-
-Recommended paths:
-
-1. **Cloud Run (simple)**
-   - Build from `Dockerfile`.
-   - Attach Cloud SQL PostgreSQL and set `DATABASE_URL`.
-   - Optional Memorystore Redis and set `REDIS_URL`.
-   - Route traffic directly to container; Nginx optional.
-
-2. **GKE (advanced)**
-   - Use the same image and convert compose services into Kubernetes manifests.
-   - Use Cloud SQL + Memorystore for managed stateful dependencies.
-   - Ingress (GKE Ingress/Nginx Ingress) can replace `deployment/nginx/default.conf`.
-
-### Production recommendations
-
-- Move secrets to managed secret stores (never commit real credentials).
-- Use HTTPS termination at ingress/load-balancer level.
-- Set `UVICORN_WORKERS` based on CPU (typically `2 x vCPU` as a starting point).
-- Keep `RUN_MIGRATIONS=1` for single-instance startup, or move migrations to a one-off release job in multi-instance setups.
+- Weighted average costing is used for stock purchase updates.
+- Sales operations validate stock availability before commit.
+- Profit, COGS, and revenue are recomputed to preserve accounting integrity.
+- Chat webhook pipeline supports signature validation, AI routing, and response logging.
+- Image recognition uses embedding similarity over pgvector-backed storage.
