@@ -70,6 +70,7 @@ streamlit run app.py
 ```
 
 Default demo login:
+- Client ID: `demo_client`
 - Username: `admin`
 - Password: `admin123`
 
@@ -81,7 +82,7 @@ Default demo login:
 
 1. **Streamlit App (`app.py`, `ui/`, `services/`)**
    - Handles day-to-day business operations (inventory updates, sales entry, dashboard analytics).
-   - Uses CSV-backed storage (`products.csv`, `sales.csv`, `users.csv`) for lightweight local/demo workflows.
+   - Uses a multi-tenant CSV storage folder `DB/` (`users.csv`, `products.csv`, `sales.csv`, `clients.csv`) where every operational row is tagged with `client_id`.
 
 2. **AI Agent Layer (`ai_agents/`)**
    - `orchestrator.py` coordinates specialized agents.
@@ -125,7 +126,32 @@ backend/app
 
 ---
 
-## 3) API Documentation
+
+## 3) Multi-tenant CSV Data Layer (DB folder)
+
+The Streamlit workflow now uses a shared multi-client CSV database under `DB/`:
+
+- `DB/users.csv`: login users per client (`client_id`, `username`, `password`, `role`).
+- `DB/products.csv`: inventory rows with `client_id`.
+- `DB/sales.csv`: sales rows with `client_id`.
+- `DB/clients.csv`: client business profile and policy controls:
+  - `business_overview`
+  - `opening_hours` / `closing_hours`
+  - `max_discount_pct`
+  - `return_refund_policy`
+  - `sales_commission_pct`
+
+### How isolation works
+- Login requires `client_id`, username, and password.
+- Inventory and sales services always filter by the logged-in `client_id`.
+- Writes are merged back into shared CSVs while preserving records for other clients.
+
+### AI agent integration with client policies
+- `AgentOrchestrator` enriches incoming payloads with `client_context` from `DB/clients.csv` when `client_id` is provided.
+- Discount decisions enforce `max_discount_pct` and include commission metadata in responses.
+- Prompt context now includes client business/policy details so agents can use them as needed.
+
+## 4) API Documentation
 
 Base URL (local): `http://localhost:8000`
 
@@ -182,7 +208,7 @@ Interactive docs:
 
 ---
 
-## 4) How to Deploy
+## 5) How to Deploy
 
 ### Option A: Docker Compose (recommended)
 
@@ -225,7 +251,7 @@ Interactive docs:
 
 ---
 
-## 5) How to Test
+## 6) How to Test
 
 ### Backend tests
 

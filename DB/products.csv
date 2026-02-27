@@ -1,0 +1,6 @@
+client_id,product_name,quantity,unit_cost,total_cost
+demo_client,sample 1,30,2.0,60.0
+demo_client,sample 2,28,3.0,84.0
+demo_client,sample 3,2,5.0,10.0
+demo_client,sample 4,6,3.0,18.0
+demo_client,sample 5,4,3.0,12.0

@@ -48,12 +48,14 @@ def discount_approval_rules() -> str:
 
 def build_agent_context(agent_name: str, payload: dict[str, Any]) -> str:
     """Return a normalized business-context prompt block."""
+    client_context = payload.get("client_context", {})
     sections = [
         f"Agent: {agent_name}",
         sales_push_rules(),
         margin_rules(),
         stock_urgency_rules(),
         discount_approval_rules(),
+        "Client Profile:\n" + _json_block(client_context),
         "Structured Input:\n" + _json_block(payload),
         (
             "Response Contract:\n"

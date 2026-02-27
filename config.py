@@ -1,6 +1,10 @@
-PRODUCTS_FILE = "products.csv"
-SALES_FILE = "sales.csv"
-USERS_FILE = "users.csv"
+from pathlib import Path
+
+DB_DIR = Path("DB")
+PRODUCTS_FILE = DB_DIR / "products.csv"
+SALES_FILE = DB_DIR / "sales.csv"
+USERS_FILE = DB_DIR / "users.csv"
+CLIENTS_FILE = DB_DIR / "clients.csv"
 
 PAGE_TITLE = "SME Asset Manager"
 PAGE_ICON = "💼"
