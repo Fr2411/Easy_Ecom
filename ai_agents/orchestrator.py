@@ -6,13 +6,15 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+from services.client_service import get_client_profile
+
 from .discount_supervisor import DiscountSupervisor
 from .sales_agent import SalesAgent
 from .stock_agent import StockAgent
 
 try:
     from openai import OpenAI
-except Exception:  # openai is optional at import time for local-only execution
+except Exception:
     OpenAI = None
 
 
@@ -29,8 +31,6 @@ class AgentOrchestrator:
         if self.openai_client is None and OpenAI is not None:
             self.openai_client = OpenAI()
 
-        # TypeScript-style function contract reference:
-        # type AgentResult = { action: string; text: string; metadata?: Record<string, unknown> };
         self.function_schemas = [
             {
                 "type": "function",
@@ -58,11 +58,20 @@ class AgentOrchestrator:
             },
         ]
 
+    def _payload_with_context(self, payload: dict[str, Any]) -> dict[str, Any]:
+        enriched = dict(payload)
+        client_id = payload.get("client_id")
+        if client_id:
+            enriched["client_context"] = get_client_profile(str(client_id))
+        else:
+            enriched["client_context"] = payload.get("client_context", {})
+        return enriched
+
     def route(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """Return structured outputs from all agents for a single business event."""
-        sales_out = self.sales_agent.evaluate(payload)
-        stock_out = self.stock_agent.evaluate(payload)
-        discount_out = self.discount_supervisor.evaluate(payload)
+        enriched = self._payload_with_context(payload)
+        sales_out = self.sales_agent.evaluate(enriched)
+        stock_out = self.stock_agent.evaluate(enriched)
+        discount_out = self.discount_supervisor.evaluate(enriched)
         return {
             "action": "orchestrated_plan",
             "text": "Combined guidance from sales, stock, and discount supervisors.",
@@ -70,21 +79,22 @@ class AgentOrchestrator:
                 "sales_agent": sales_out,
                 "stock_agent": stock_out,
                 "discount_supervisor": discount_out,
+                "client_context": enriched.get("client_context", {}),
             },
         }
 
     def call_openai_with_functions(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """Use OpenAI function-calling to request the best tool call for the payload."""
+        enriched = self._payload_with_context(payload)
         if self.openai_client is None:
             return {
                 "action": "local_fallback",
                 "text": "OpenAI client unavailable; returning local orchestration.",
-                "metadata": self.route(payload),
+                "metadata": self.route(enriched),
             }
 
         user_prompt = (
             "Decide which function to call for this retail request and return compliant args:\n"
-            + json.dumps(payload)
+            + json.dumps(enriched)
         )
         response = self.openai_client.chat.completions.create(
             model=self.model,
@@ -93,7 +103,7 @@ class AgentOrchestrator:
                     "role": "system",
                     "content": (
                         "You are a retail AI orchestrator. Use function tools for decisions and "
-                        "respect sales push, margin safety, stock urgency, and discount approvals."
+                        "respect sales push, margin safety, stock urgency, discount approvals, and client policies."
                     ),
                 },
                 {"role": "user", "content": user_prompt},
@@ -116,5 +126,6 @@ class AgentOrchestrator:
             "metadata": {
                 "function": tool_call.function.name,
                 "arguments": json.loads(tool_call.function.arguments or "{}"),
+                "client_context": enriched.get("client_context", {}),
             },
         }

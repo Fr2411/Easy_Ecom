@@ -11,15 +11,6 @@ from .prompt_utils import build_agent_context
 @dataclass
 class DiscountSupervisor:
     name: str = "discount_supervisor"
-
-    # TypeScript-style schema mirror:
-    # type DiscountInput = {
-    #   product_name: string;
-    #   current_margin_pct: number;
-    #   requested_discount_pct: number;
-    #   minimum_margin_pct?: number;
-    #   strategic_override?: boolean;
-    # }
     input_schema: dict[str, Any] = None
 
     def __post_init__(self) -> None:
@@ -40,15 +31,21 @@ class DiscountSupervisor:
         return build_agent_context(self.name, payload)
 
     def evaluate(self, payload: dict[str, Any]) -> dict[str, Any]:
-        floor = payload.get("minimum_margin_pct", 20)
-        post_discount_margin = payload["current_margin_pct"] - payload["requested_discount_pct"]
+        client_context = payload.get("client_context", {})
+        floor = float(payload.get("minimum_margin_pct", 20))
+        max_discount = float(client_context.get("max_discount_pct", 100))
+        current_margin = float(payload.get("current_margin_pct", 0))
+        requested = float(payload.get("requested_discount_pct", 0))
+        post_discount_margin = current_margin - requested
         override = payload.get("strategic_override", False)
-        requested = payload["requested_discount_pct"]
 
-        if post_discount_margin < floor and not override:
+        if requested > max_discount and not override:
+            action = "reject_discount"
+            text = f"Reject {requested:.1f}% discount: exceeds client max policy of {max_discount:.1f}%."
+        elif post_discount_margin < floor and not override:
             action = "reject_discount"
             text = (
-                f"Reject {requested:.1f}% discount for {payload['product_name']}: "
+                f"Reject {requested:.1f}% discount for {payload.get('product_name', 'product')}: "
                 f"margin drops to {post_discount_margin:.1f}% below floor {floor:.1f}%."
             )
         elif requested > 20 or (post_discount_margin < floor and override):
@@ -67,5 +64,7 @@ class DiscountSupervisor:
             "metadata": {
                 "post_discount_margin": post_discount_margin,
                 "minimum_margin_pct": floor,
+                "max_discount_pct": max_discount,
+                "sales_commission_pct": float(client_context.get("sales_commission_pct", 0)),
             },
         }

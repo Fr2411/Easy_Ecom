@@ -54,6 +54,7 @@ class WhatsAppService:
 
     def route_to_orchestrator(self, inbound_message: dict[str, str]) -> dict[str, Any]:
         payload = {
+            'client_id': inbound_message.get('client_id', 'demo_client'),
             'event_type': 'whatsapp_message',
             'channel': 'whatsapp',
             'customer_phone': inbound_message['from_phone'],

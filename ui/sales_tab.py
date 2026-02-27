@@ -5,8 +5,8 @@ from services.inventory_service import load_products
 from services.sales_service import add_sale, load_sales
 
 
-def render_sales_tab():
-    df_products = load_products()
+def render_sales_tab(client_id):
+    df_products = load_products(client_id)
     df_instock = df_products[df_products["quantity"] > 0]
 
     if df_instock.empty:
@@ -24,7 +24,7 @@ def render_sales_tab():
     quantity_sold = st.number_input("Quantity Sold", min_value=1, max_value=available_qty, step=1)
     unit_price = st.number_input("Selling Price", min_value=0.0, step=0.01)
 
-    df_sales = load_sales()
+    df_sales = load_sales(client_id)
     profit_per_unit, total_profit_sale, avg_margin = sales_preview_metrics(
         df_sales,
         unit_cost,
@@ -40,7 +40,7 @@ def render_sales_tab():
 
     submitted = st.button("Record Sale")
     if submitted:
-        ok, message = add_sale(product_name, quantity_sold, unit_price)
+        ok, message = add_sale(client_id, product_name, quantity_sold, unit_price)
         if ok:
             st.success(message)
             st.rerun()

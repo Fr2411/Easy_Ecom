@@ -1,6 +1,0 @@
-product_name,quantity,unit_cost,total_cost
-sample 1,30,2.0,60.0
-sample 2,28,3.0,84.0
-sample 3,2,5.0,10.0
-sample 4,6,3.0,18.0
-sample 5,4,3.0,12.0

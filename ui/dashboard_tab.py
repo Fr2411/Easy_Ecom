@@ -2,13 +2,21 @@ import plotly.express as px
 import streamlit as st
 
 from services.analytics_service import summarize_dashboard
+from services.client_service import get_client_profile
 from services.inventory_service import load_products
 from services.sales_service import load_sales
 
 
-def render_dashboard_tab():
-    df_products = load_products()
-    df_sales = load_sales()
+def render_dashboard_tab(client_id):
+    profile = get_client_profile(client_id)
+    if profile:
+        st.caption(
+            f"Client: {profile.get('client_name')} | Hours: {profile.get('opening_hours')} - {profile.get('closing_hours')} | "
+            f"Max discount: {profile.get('max_discount_pct')}%"
+        )
+
+    df_products = load_products(client_id)
+    df_sales = load_sales(client_id)
     summary = summarize_dashboard(df_products, df_sales)
 
     col1, col2, col3, col4, col5 = st.columns(5)
