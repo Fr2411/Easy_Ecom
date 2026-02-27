@@ -46,6 +46,7 @@ A lightweight Streamlit app for small-business inventory and sales tracking with
 3. **Stock updates (purchases)**
    - New purchases are merged into existing stock using weighted-average unit cost.
 4. **Sales recording**
+   - Product selection immediately refreshes stock, purchase cost, and profit preview values in the Sales tab.
    - Sales are validated against available stock.
    - Revenue, COGS, and profit are computed and persisted.
    - Inventory quantity and value are reduced automatically.
@@ -58,7 +59,7 @@ A lightweight Streamlit app for small-business inventory and sales tracking with
   ```text
   new_unit_cost = ((old_qty * old_cost) + (purchased_qty * purchase_cost)) / (old_qty + purchased_qty)
   ```
-- **Sale Calculations**
+- **Sale Calculations (live preview in Sales tab)**
   ```text
   total_sale = quantity_sold * unit_price
   cogs       = quantity_sold * unit_cost
