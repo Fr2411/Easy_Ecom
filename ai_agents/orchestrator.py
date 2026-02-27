@@ -29,7 +29,10 @@ class AgentOrchestrator:
         self.discount_supervisor = DiscountSupervisor()
 
         if self.openai_client is None and OpenAI is not None:
-            self.openai_client = OpenAI()
+            try:
+                self.openai_client = OpenAI()
+            except Exception:
+                self.openai_client = None
 
         self.function_schemas = [
             {

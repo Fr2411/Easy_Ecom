@@ -74,6 +74,19 @@ Default demo login:
 - Username: `admin`
 - Password: `admin123`
 
+
+### Optional API-backed dashboard integration
+
+The Streamlit dashboard can enrich CSV analytics with live FastAPI signals when these env vars are set before running Streamlit:
+
+```env
+EASY_ECOM_API_BASE_URL=http://localhost:8000
+EASY_ECOM_API_TOKEN=<jwt_access_token>
+```
+
+When configured, dashboard widgets pull returns, stock-aging, inventory movements, orders, and session logs from API endpoints; otherwise the UI gracefully falls back to CSV-only metrics.
+
+
 ---
 
 ## 2) Architecture Overview
@@ -304,3 +317,18 @@ python -m compileall .
 - Profit, COGS, and revenue are recomputed to preserve accounting integrity.
 - Chat webhook pipeline supports signature validation, AI routing, and response logging.
 - Image recognition uses embedding similarity over pgvector-backed storage.
+
+
+## 7) Dashboard Flow (Streamlit)
+
+The dashboard tab is now organized as a command-center layout while preserving the existing architecture (CSV-first + optional API augment):
+
+1. **Executive KPI strip**: today/week/MTD revenue, gross profit + margin, inventory value, sell-through, and return/refund KPIs.
+2. **Sales performance panel**: revenue/profit by product, margin histogram, top/bottom SKU contribution, AOV + order-count trend.
+3. **Inventory health panel**: low-stock/out-of-stock counters, days-of-inventory estimate from recent velocity, stock-aging table, stock movement summary.
+4. **Returns/discount/AI panel**: simulated discount-governance monitor (policy-aware), commission impact preview, and AI recommendation card from orchestrated agents.
+5. **Operations & control panel**: session activity counts, sensitive order edit/delete alerts, failed auth trend, and data freshness timestamp.
+6. **Sidebar policy snapshot**: business profile, operating hours, discount cap, commission rate, and return policy.
+
+This implementation keeps the original data model intact (no schema migration required) and uses existing data sources in `DB/*.csv`, AI agents, and FastAPI endpoints.
+
