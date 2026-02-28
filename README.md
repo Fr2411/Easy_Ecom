@@ -159,6 +159,7 @@ backend/app
 The Streamlit workflow now uses a shared multi-client CSV database under `DB/`:
 
 - `DB/users.csv`: login users per client (`client_id`, `username`, `password`, `role`).
+- `DB/user_feature_access.csv`: per-user feature toggle map (`client_id`, `username`, `feature`, `enabled`).
 - `DB/products.csv`: inventory rows with `client_id`.
 - `DB/sales.csv`: sales rows with `client_id`.
 - `DB/clients.csv`: client business profile, communication channels, and policy controls:
@@ -191,6 +192,8 @@ The Streamlit workflow now uses a shared multi-client CSV database under `DB/`:
 - **Owner** (per client) can access all tabs and finance data, but only within that client workspace.
 - **Employee** (per client) can access operations tabs only; finance data and finance tab are hidden.
 - Legacy CSV roles are normalized automatically (`superadmin -> admin`, `manager -> owner`, `staff -> employee`).
+- Platform admins now have a dedicated **Role Access** tab to enable/disable each feature per user with toggle controls.
+- Feature toggle enforcement is applied at runtime; users only see tabs that are currently enabled for their login.
 
 ## 4) API Documentation
 
