@@ -51,6 +51,7 @@ SEED_CLIENTS = [
 ]
 SEED_USERS = [
     {"client_id": "__admin__", "username": "admin", "password": "admin123", "role": "admin"},
+    {"client_id": "demo_client", "username": "owner", "password": "owner123", "role": "owner"},
     {"client_id": "demo_client", "username": "employee", "password": "employee123", "role": "employee"},
 ]
 SEED_PRODUCTS = [

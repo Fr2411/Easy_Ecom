@@ -54,9 +54,9 @@ def render_admin_tab() -> None:
         )
 
         st.markdown("##### Initial credentials")
-        user_username = st.text_input("Username", value="admin")
+        user_username = st.text_input("Username", value="owner")
         user_password = st.text_input("Password", type="password")
-        user_role = st.selectbox("Role", ["admin", "employee"], index=0)
+        user_role = st.selectbox("Role", ["owner", "employee"], index=0)
         submitted = st.form_submit_button("Create Client")
 
     if submitted:

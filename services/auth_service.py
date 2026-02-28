@@ -6,16 +6,17 @@ from services.client_service import ensure_db_structure
 
 ROLE_ALIAS = {
     "superadmin": "admin",
-    "owner": "admin",
-    "manager": "admin",
+    "manager": "owner",
     "staff": "employee",
 }
+
+VALID_ROLES = {"admin", "owner", "employee"}
 
 
 def normalize_role(role: str) -> str:
     role_name = str(role or "employee").strip().lower()
     normalized = ROLE_ALIAS.get(role_name, role_name)
-    return normalized if normalized in {"admin", "employee"} else "employee"
+    return normalized if normalized in VALID_ROLES else "employee"
 
 
 def load_users():

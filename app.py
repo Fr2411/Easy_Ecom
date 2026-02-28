@@ -38,19 +38,22 @@ if not st.session_state.logged_in:
         else:
             st.error("Invalid client, username or password")
 
-    st.caption("Default admin credentials: __admin__ / admin / admin123")
-    st.caption("Default employee credentials: demo_client / employee / employee123")
+    st.caption("Default platform admin: __admin__ / admin / admin123")
+    st.caption("Default client owner: demo_client / owner / owner123")
+    st.caption("Default client employee: demo_client / employee / employee123")
 else:
-    role = st.session_state.get("role", "employee")
-    is_admin = role == "admin"
+    role = str(st.session_state.get("role", "employee")).lower()
+    is_platform_admin = role == "admin" and st.session_state.get("client_id") == "__admin__"
+    is_owner = role == "owner"
+    include_finance = role in {"admin", "owner"}
 
-    if is_admin:
+    if is_platform_admin:
         all_clients = get_all_clients()
         client_options = all_clients["client_id"].tolist()
         client_filters = ["All clients", *client_options]
         selected_client_filter = st.selectbox("Client filter", client_filters, index=0, key="admin_client_filter")
         active_client_scope = "__all__" if selected_client_filter == "All clients" else selected_client_filter
-        st.caption(f"Logged in as {st.session_state.get('username')} ({role})")
+        st.caption(f"Logged in as {st.session_state.get('username')} (platform admin)")
 
         tab_dashboard, tab_add, tab_assets, tab_sales, tab_finance, tab_admin = st.tabs(
             ["📊 Dashboard", "➕ Add Product", "📦 Assets Summary", "🧾 Sales Entry", "💰 Finance", "🛠️ Client Admin"]
@@ -58,7 +61,7 @@ else:
 
         with tab_dashboard:
             if client_options:
-                render_dashboard_tab(active_client_scope, include_finance=False)
+                render_dashboard_tab(active_client_scope, include_finance=True)
             else:
                 st.info("No clients found.")
 
@@ -70,13 +73,13 @@ else:
 
         with tab_assets:
             if client_options:
-                render_assets_tab(active_client_scope, include_finance=False)
+                render_assets_tab(active_client_scope, include_finance=True)
             else:
                 st.info("No clients found.")
 
         with tab_sales:
             if active_client_scope != "__all__":
-                render_sales_tab(active_client_scope, include_finance=False)
+                render_sales_tab(active_client_scope, include_finance=True)
             else:
                 st.info("Select a specific client in Client filter to record sales.")
 
@@ -92,21 +95,31 @@ else:
     else:
         active_client_id = st.session_state.get("client_id")
         st.caption(f"Logged in as {st.session_state.get('username')} ({role}) | Client: {active_client_id}")
-        tab_dashboard, tab_add, tab_assets, tab_sales = st.tabs(
-            ["📊 Dashboard", "➕ Add Product", "📦 Assets Summary", "🧾 Sales Entry"]
-        )
+
+        if is_owner:
+            tab_dashboard, tab_add, tab_assets, tab_sales, tab_finance = st.tabs(
+                ["📊 Dashboard", "➕ Add Product", "📦 Assets Summary", "🧾 Sales Entry", "💰 Finance"]
+            )
+        else:
+            tab_dashboard, tab_add, tab_assets, tab_sales = st.tabs(
+                ["📊 Dashboard", "➕ Add Product", "📦 Assets Summary", "🧾 Sales Entry"]
+            )
 
         with tab_dashboard:
-            render_dashboard_tab(active_client_id, include_finance=False)
+            render_dashboard_tab(active_client_id, include_finance=include_finance)
 
         with tab_add:
             render_add_product_tab(active_client_id)
 
         with tab_assets:
-            render_assets_tab(active_client_id, include_finance=False)
+            render_assets_tab(active_client_id, include_finance=include_finance)
 
         with tab_sales:
-            render_sales_tab(active_client_id, include_finance=False)
+            render_sales_tab(active_client_id, include_finance=include_finance)
+
+        if is_owner:
+            with tab_finance:
+                render_finance_tab(active_client_id)
 
     if st.button("Logout"):
         st.session_state.logged_in = False

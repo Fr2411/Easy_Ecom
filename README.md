@@ -69,15 +69,20 @@ uvicorn backend.app.main:app --reload --port 8000
 streamlit run app.py
 ```
 
-Default employee login:
-- Client ID: `demo_client`
-- Username: `employee`
-- Password: `employee123`
-
 Default platform admin login:
 - Client ID: `__admin__`
 - Username: `admin`
 - Password: `admin123`
+
+Default client owner login:
+- Client ID: `demo_client`
+- Username: `owner`
+- Password: `owner123`
+
+Default client employee login:
+- Client ID: `demo_client`
+- Username: `employee`
+- Password: `employee123`
 
 
 ### Optional API-backed dashboard integration
@@ -168,9 +173,10 @@ The Streamlit workflow now uses a shared multi-client CSV database under `DB/`:
 
 ### How isolation works
 - Client login requires `client_id`, username, and password.
-- Easy Ecom now supports only two roles: `admin` and `employee`.
-- Admin login (`client_id=__admin__`) unlocks a dedicated **Client Admin** tab plus a **Finance** tab and supports cross-client access via a single **Client filter**.
-- Employee users only access their own `client_id` workspace and never see finance screens or finance values in operational tabs.
+- Easy Ecom now supports one platform role (`admin`) and two per-client roles (`owner`, `employee`).
+- Platform admin login (`client_id=__admin__`) unlocks the **Client Admin** tab, **Finance** tab, and cross-client access via **Client filter**.
+- Client owners can access all tabs for their own client, including finance.
+- Client employees only access their own `client_id` workspace and never see finance screens or finance values in operational tabs.
 - Inventory and sales services always filter by the active `client_id` workspace.
 - Writes are merged back into shared CSVs while preserving records for other clients.
 
@@ -180,10 +186,11 @@ The Streamlit workflow now uses a shared multi-client CSV database under `DB/`:
 - Prompt context now includes client business/policy details so agents can use them as needed.
 
 
-### Role-based access redesign (Admin vs Employee)
-- **Admin** can access all tabs and finance data (Finance tab, cost/profit/revenue views, finance API endpoints).
-- **Employee** can access dashboard, inventory, and sales operations but all finance data is hidden and the finance tab is removed.
-- Legacy CSV roles (`superadmin`, `owner`, `manager`, `staff`) are normalized automatically into `admin` or `employee` during login.
+### Role-based access redesign (Platform Admin + Client Owner/Employee)
+- **Admin** (`client_id=__admin__`) can access all clients, all tabs, and finance endpoints.
+- **Owner** (per client) can access all tabs and finance data, but only within that client workspace.
+- **Employee** (per client) can access operations tabs only; finance data and finance tab are hidden.
+- Legacy CSV roles are normalized automatically (`superadmin -> admin`, `manager -> owner`, `staff -> employee`).
 
 ## 4) API Documentation
 
@@ -396,8 +403,9 @@ This implementation keeps the original data model intact (no schema migration re
 - `POST /api/v1/client/support-message`
 
 ### RBAC matrix
-- `admin`: full finance + dashboard operations.
-- `employee`: all non-finance workflows; finance endpoints are blocked.
+- `admin`: full global access across all clients (UI + finance APIs).
+- `owner`: full access within assigned client, including finance APIs.
+- `employee`: non-finance workflows only; finance endpoints are blocked.
 
 ### Security and audit controls
 - Financial operations generate `audit_logs` records (action, entity, actor, timestamp).
