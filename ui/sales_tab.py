@@ -6,6 +6,7 @@ from services.sales_service import add_sale, load_sales
 
 
 def render_sales_tab(client_id, include_finance: bool = True):
+    st.subheader("Sales Entry")
     df_products = load_products(client_id)
     df_instock = df_products[df_products["quantity"] > 0]
 
@@ -48,3 +49,15 @@ def render_sales_tab(client_id, include_finance: bool = True):
             st.rerun()
         else:
             st.error(message)
+
+    st.markdown("---")
+    st.subheader("Sales Entry Statement")
+    latest_sales_df = load_sales(client_id)
+
+    if latest_sales_df.empty:
+        st.info("No sales entries found yet for this client.")
+        return
+
+    latest_sales_df = latest_sales_df.sort_values(by=["date"], ascending=False).reset_index(drop=True)
+    latest_sales_df.index = latest_sales_df.index + 1
+    st.dataframe(latest_sales_df, use_container_width=True)
