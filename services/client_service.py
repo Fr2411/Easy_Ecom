@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from config import CLIENTS_FILE, DB_DIR, PRODUCTS_FILE, SALES_FILE, USERS_FILE
+from config import CLIENTS_FILE, DB_DIR, PRODUCTS_FILE, SALES_FILE, USER_ACCESS_FILE, USERS_FILE
 
 CLIENT_COLUMNS = [
     "client_id",
@@ -32,6 +32,7 @@ SALES_COLUMNS = [
     "cost_of_goods_sold",
     "profit",
 ]
+USER_ACCESS_COLUMNS = ["client_id", "username", "feature", "enabled"]
 
 
 SEED_CLIENTS = [
@@ -115,6 +116,7 @@ def ensure_db_structure() -> None:
     _ensure_csv(USERS_FILE, USER_COLUMNS, SEED_USERS)
     _ensure_csv(PRODUCTS_FILE, PRODUCT_COLUMNS, SEED_PRODUCTS)
     _ensure_csv(SALES_FILE, SALES_COLUMNS, SEED_SALES)
+    _ensure_csv(USER_ACCESS_FILE, USER_ACCESS_COLUMNS, [])
 
     _ensure_seed_rows(USERS_FILE, SEED_USERS, ["client_id", "username"])
     _ensure_seed_rows(CLIENTS_FILE, SEED_CLIENTS, ["client_id"])
