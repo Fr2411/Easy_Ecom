@@ -95,6 +95,29 @@ Default client employee login:
 - Password: `employee123`
 
 
+
+### AWS App Runner deployment (Python 3.11 runtime)
+
+The repo root includes an `apprunner.yaml` manifest for AWS App Runner source deployments using the managed Python 3.11 runtime.
+
+```yaml
+version: 1.0
+
+runtime: python311
+
+build:
+  commands:
+    build:
+      - pip install --upgrade pip
+      - pip install -r requirements.txt
+
+run:
+  command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
+  port: 8000
+```
+
+This configuration installs project dependencies from the root `requirements.txt` and runs the FastAPI backend with Uvicorn on port `8000`.
+
 ### Optional API-backed dashboard integration
 
 The Streamlit dashboard can enrich CSV analytics with live FastAPI signals when these env vars are set before running Streamlit:
