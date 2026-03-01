@@ -1,5 +1,5 @@
 version: 1.0
-runtime: docker
+runtime: python3
 build:
   dockerfile: Dockerfile
   context: .
