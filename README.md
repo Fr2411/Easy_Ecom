@@ -24,7 +24,13 @@ pip install -r backend/requirements.txt
 ```
 
 ### Environment configuration
-Create `backend/.env` (or export env vars) with at least:
+Create a root `.env` file (recommended by copying `.env.example`) so both the Streamlit app and FastAPI backend read the same values:
+
+```bash
+cp .env.example .env
+```
+
+Then set at least:
 
 ```env
 DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/easy_ecom
@@ -36,12 +42,16 @@ WHATSAPP_APP_SECRET=
 WHATSAPP_ACCESS_TOKEN=
 WHATSAPP_PHONE_NUMBER_ID=
 WHATSAPP_API_VERSION=v20.0
-OPENAI_API_KEY=
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_REGION=us-east-1
+OPENAI_API_KEY=replace_with_openai_api_key
+S3_ACCESS_KEY_ID=
+S3_SECRET_ACCESS_KEY=
+S3_REGION=us-east-1
 S3_BUCKET_NAME=easy-ecom
 ```
+
+Notes:
+- AI agents read `OPENAI_API_KEY` from process environment first, then `.env`, then `.env.example` as fallback.
+- Backend settings also support `.env` then `.env.example`, so one shared key can power orchestrator, embeddings, and API flows.
 
 ### Start database
 

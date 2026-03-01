@@ -8,6 +8,7 @@ from typing import Any
 
 from services.client_service import get_client_profile
 
+from .env_config import get_config_value
 from .discount_supervisor import DiscountSupervisor
 from .sales_agent import SalesAgent
 from .stock_agent import StockAgent
@@ -30,7 +31,8 @@ class AgentOrchestrator:
 
         if self.openai_client is None and OpenAI is not None:
             try:
-                self.openai_client = OpenAI()
+                api_key = get_config_value("OPENAI_API_KEY")
+                self.openai_client = OpenAI(api_key=api_key) if api_key else None
             except Exception:
                 self.openai_client = None
 
