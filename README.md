@@ -1,29 +1,34 @@
 # Easy Ecom
 
-Easy Ecom uses a **stateless Streamlit UI** and a **FastAPI + PostgreSQL backend** as the single source of truth.
+Easy Ecom runs as a **stateless Streamlit UI** backed by **FastAPI + PostgreSQL** as the only source of truth.
 
-## Architecture (AWS-ready shape)
+## Architecture (AWS ECS + RDS shape)
 
-- `streamlit` container (`Dockerfile.streamlit`): UI only (no CSV, no DB file access).
-- `backend` container (`Dockerfile.api`): FastAPI + SQLAlchemy + Alembic.
-- `db` container: PostgreSQL.
+- `streamlit` container (`Dockerfile.streamlit`): UI-only HTTP client.
+- `backend` container (`Dockerfile.api`): FastAPI, validation, business logic, persistence.
+- `db` container: PostgreSQL (RDS-compatible setup).
 - `nginx` container:
   - `/` -> Streamlit (`streamlit:8501`)
-  - `/api/*` -> FastAPI (`backend:8000`)
+  - `/api/` -> FastAPI (`backend:8000`)
   - `/health` -> FastAPI `/health`
 
-Legacy `DB/` CSV files are retained only as historical artifacts and are ignored by git/runtime.
+## Runtime data flow
 
-## Core runtime flow
+1. User interacts with Streamlit pages.
+2. Streamlit uses `services/api_client.py` only.
+3. API calls hit backend endpoints for auth/products/sales.
+4. FastAPI persists entities through SQLAlchemy models into Postgres.
+5. Alembic migrations are applied on startup to keep schema in sync.
 
-1. User opens `http://localhost/` (nginx).
-2. Streamlit pages call FastAPI via `services/api_client.py` using `API_BASE_URL`.
-3. FastAPI persists data in Postgres (`ui_users`, `ui_products`, `ui_sales`).
-4. Alembic migrations are applied at API startup (`alembic upgrade head`).
+## Core dependency ownership
+
+- **Streamlit**: presentation + API requests only.
+- **FastAPI**: validation, business rules, persistence.
+- **Postgres**: durable storage for horizontal-scale deployments.
 
 ## Environment variables
 
-Use `.env.example` as the template.
+Use `.env.example` as template.
 
 ### Backend
 - `DATABASE_URL=postgresql+psycopg2://postgres:postgres@db:5432/easy_ecom`
@@ -43,10 +48,10 @@ docker compose up -d --build
 Then verify:
 
 - UI: `http://localhost/`
-- API via nginx: `http://localhost/api/products`
-- Health: `http://localhost/api/health`
+- API: `http://localhost/api/products?client_id=demo_client`
+- Health: `http://localhost/health`
 
-## API endpoints used by Streamlit
+## API endpoints currently used by Streamlit
 
 - `POST /auth/login`
 - `GET /products`
@@ -54,8 +59,3 @@ Then verify:
 - `GET /sales`
 - `POST /sales`
 - `GET /health`
-
-## Notes for cloud deployment
-
-- Keep two app images (`Dockerfile.api`, `Dockerfile.streamlit`) and one Postgres instance (RDS in AWS).
-- Keep nginx as the edge router to preserve `/` + `/api/*` split.
