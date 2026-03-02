@@ -24,12 +24,8 @@ class EasyEcomApiClient:
         response.raise_for_status()
         return response.json()
 
-    def create_product(self, client_id: str, name: str, category: str, cost: float, price: float) -> dict:
-        response = requests.post(
-            self._url('/products'),
-            json={'client_id': client_id, 'name': name, 'category': category or None, 'cost': cost, 'price': price},
-            timeout=10,
-        )
+    def create_product(self, payload: dict) -> dict:
+        response = requests.post(self._url('/products'), json=payload, timeout=10)
         response.raise_for_status()
         return response.json()
 
@@ -38,16 +34,7 @@ class EasyEcomApiClient:
         response.raise_for_status()
         return response.json()
 
-    def create_sale(self, client_id: str, product_id: int, qty: int, selling_price: float) -> dict:
-        response = requests.post(
-            self._url('/sales'),
-            json={
-                'client_id': client_id,
-                'product_id': product_id,
-                'qty': qty,
-                'selling_price': selling_price,
-            },
-            timeout=10,
-        )
+    def create_sale(self, payload: dict) -> dict:
+        response = requests.post(self._url('/sales'), json=payload, timeout=10)
         response.raise_for_status()
         return response.json()
