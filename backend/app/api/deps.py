@@ -16,7 +16,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         detail='Could not validate credentials',
     )
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.algorithm])
         username: str | None = payload.get('sub')
         if username is None:
             raise credentials_exception

@@ -10,13 +10,13 @@ class Settings(BaseSettings):
 
     app_name: str = 'Easy Ecom API'
     api_v1_prefix: str = '/api/v1'
-    secret_key: str = 'change_me'
+    jwt_secret: str = 'change-me'
     algorithm: str = 'HS256'
     access_token_expire_minutes: int = 60
     order_edit_2fa_code: str = '123456'
     cors_origins: str = 'http://localhost,http://localhost:80'
 
-    database_url: str = 'postgresql+psycopg2://postgres:postgres@localhost:5432/easy_ecom'
+    database_url: str
     whatsapp_verify_token: str = 'change_me_verify_token'
     whatsapp_app_secret: str = ''
     whatsapp_access_token: str = ''

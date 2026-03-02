@@ -21,7 +21,7 @@ def render_add_product_tab(client_id: str):
                 st.error('Enter product name')
             else:
                 try:
-                    api_client.create_product(client_id, product_name.strip(), category.strip(), unit_cost, unit_price)
+                    api_client.create_product({'client_id': client_id, 'name': product_name.strip(), 'category': category.strip(), 'cost': unit_cost, 'price': unit_price})
                     st.success('Product added successfully')
                     st.rerun()
                 except Exception as exc:

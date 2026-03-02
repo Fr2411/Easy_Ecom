@@ -11,6 +11,7 @@ from backend.app.models.return_order import ReturnItem, ReturnOrder
 from backend.app.models.sale import Sale
 from backend.app.models.session_log import SessionLog
 from backend.app.models.stock_movement import StockMovement
+from backend.app.models.ui_core import UiProduct, UiSale, UiUser
 from backend.app.models.user import Permission, Role, User
 
 __all__ = [
@@ -42,4 +43,7 @@ __all__ = [
     'ReturnOrder',
     'ReturnItem',
     'Sale',
+    'UiUser',
+    'UiProduct',
+    'UiSale',
 ]
